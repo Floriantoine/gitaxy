@@ -17,9 +17,9 @@ export type Couplings = {
   setEnabled(enabled: boolean): void;
 };
 
-const GRAVITY_STRENGTH = 6.0;   // strong constant pull (no distance scaling)
-const DAMPING = 0.97;           // slow decay — offsets persist
-const MAX_OFFSET = 60;          // cap: files can't drift more than 60 units from base
+const GRAVITY_STRENGTH = 25.0;  // very strong pull
+const DAMPING = 0.985;          // very slow decay — offsets accumulate more
+const MAX_OFFSET = 150;         // allow large drift for cross-dir couplings
 
 /**
  * File couplings: gravitational attraction between files often modified together.
@@ -120,7 +120,8 @@ export function createCouplings(
       const dist = tmpDir.length();
       if (dist < 1) continue;
       tmpDir.divideScalar(dist);
-      const force = GRAVITY_STRENGTH * c.strength;
+      // sqrt(strength) so weaker cross-dir couplings still produce visible pull
+      const force = GRAVITY_STRENGTH * Math.sqrt(c.strength);
       tmpDir.multiplyScalar(force);
       offsets[c.idxA].add(tmpDir);
       offsets[c.idxB].sub(tmpDir);

@@ -112,9 +112,12 @@ export function createFileInstances(
       // Position is already set by distribution.tick() to the orbit target.
       // We might override it during spawn flight.
       // Base position + gravity offset (from couplings module)
-      let posX = f.currentPosition.x + f.gravityOffset.x;
-      let posY = f.currentPosition.y + f.gravityOffset.y;
-      let posZ = f.currentPosition.z + f.gravityOffset.z;
+      const gx = f.gravityOffset ? f.gravityOffset.x : 0;
+      const gy = f.gravityOffset ? f.gravityOffset.y : 0;
+      const gz = f.gravityOffset ? f.gravityOffset.z : 0;
+      let posX = f.currentPosition.x + gx;
+      let posY = f.currentPosition.y + gy;
+      let posZ = f.currentPosition.z + gz;
 
 
       if (hidden[i] === 1) {
