@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.superpowers/
+public/data/
+*.local
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,23 @@
+{
+  "name": "gitview",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Visualisation 3D constellation d'un repo git, façon Gource cosmique",
+  "scripts": {
+    "predev": "node src/cli/scan-repo.mjs /home/floriantoine/Delivery/gtix3",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "scan": "node src/cli/scan-repo.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.160.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.10"
+  }
+}

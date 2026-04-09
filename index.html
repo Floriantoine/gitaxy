@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>gitView — Constellation 3D</title>
+    <link rel="stylesheet" href="/src/viewer/style.css" />
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+
+    <div id="info">
+      <h1>gitView</h1>
+      <div id="status">Chargement…</div>
+      <div class="hint">↻ glisse pour tourner · molette pour zoomer · clic-droit pour panner</div>
+      <div class="hint"><strong>Shift + glisse</strong> sur un dossier pour le déplacer</div>
+      <div class="hint"><strong>Click</strong> sur un dossier pour zoomer dessus</div>
+    </div>
+
+    <div id="legend"></div>
+    <div id="authors"></div>
+    <div id="settings"></div>
+    <div id="tooltip"></div>
+    <div id="breadcrumb"></div>
+    <div id="inspector"></div>
+    <div id="timeline"></div>
+
+    <script type="module" src="/src/viewer/main.ts"></script>
+  </body>
+</html>
