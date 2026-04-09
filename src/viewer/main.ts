@@ -529,6 +529,7 @@ async function main() {
     const commitIdx = timeline.state.currentIndex;
     distribution.update(commitIdx); // recompute targets if N_visible changed
     distribution.tick();            // lerp ALL dirs + files toward targets
+    couplings.update();             // gravity offsets BEFORE instances reads positions
 
     // Dir spawn flight animations AFTER tick — overrides spawning dirs
     for (const [d, state] of dirSpawnAnims) {
@@ -561,7 +562,6 @@ async function main() {
     tethers.update(commitIdx);
     fileTrails.update(commitIdx);
     dirTrails.update(commitIdx);
-    couplings.update();
     starSprites.tick(t);
     focus.tick();
     labels.tick(camera);

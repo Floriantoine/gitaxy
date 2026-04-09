@@ -17,9 +17,9 @@ export type Couplings = {
   setEnabled(enabled: boolean): void;
 };
 
-const GRAVITY_STRENGTH = 0.15;  // base pull per frame
-const DAMPING = 0.92;           // offset decays each frame (prevents runaway)
-const MIN_DIST_SQ = 25;         // prevent infinite force at close range
+const GRAVITY_STRENGTH = 6.0;   // strong constant pull (no distance scaling)
+const DAMPING = 0.97;           // slow decay — offsets persist
+const MAX_OFFSET = 60;          // cap: files can't drift more than 60 units from base
 
 /**
  * File couplings: gravitational attraction between files often modified together.
@@ -109,21 +109,30 @@ export function createCouplings(
       offsets[i].multiplyScalar(DAMPING);
     }
 
-    // 2. Apply gravitational attraction for each coupling
+    // 2. Apply gravitational attraction — CONSTANT force (no distance falloff)
+    //    so even files across the constellation visibly attract
     for (const c of resolved) {
       const a = files[c.idxA];
       const b = files[c.idxB];
       tmpDir.subVectors(b.currentPosition, a.currentPosition);
-      const distSq = Math.max(MIN_DIST_SQ, tmpDir.lengthSq());
-      const force = GRAVITY_STRENGTH * c.strength / Math.sqrt(distSq);
-      tmpDir.normalize().multiplyScalar(force);
+      const dist = tmpDir.length();
+      if (dist < 1) continue; // same position, skip
+      tmpDir.divideScalar(dist); // normalize
+      const force = GRAVITY_STRENGTH * c.strength;
+      tmpDir.multiplyScalar(force);
       offsets[c.idxA].add(tmpDir);
       offsets[c.idxB].sub(tmpDir);
     }
 
-    // 3. Apply offsets to file positions
+    // 3. Cap offsets to prevent files from flying too far from base position
     for (let i = 0; i < files.length; i++) {
-      if (offsets[i].lengthSq() > 0.0001) {
+      const len = offsets[i].length();
+      if (len > MAX_OFFSET) offsets[i].multiplyScalar(MAX_OFFSET / len);
+    }
+
+    // 4. Apply offsets to file positions
+    for (let i = 0; i < files.length; i++) {
+      if (offsets[i].lengthSq() > 0.01) {
         files[i].currentPosition.add(offsets[i]);
       }
     }
