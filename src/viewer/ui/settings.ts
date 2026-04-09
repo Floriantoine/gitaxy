@@ -5,7 +5,6 @@ export type SettingsCallbacks = {
   onLinks(enabled: boolean): void;
   onLabels(enabled: boolean): void;
   onDirOrbits(enabled: boolean): void;
-  onCouplings(enabled: boolean): void;
   onAutoRotate(enabled: boolean): void;
   onExpand(enabled: boolean): void;
 };
@@ -13,9 +12,9 @@ export type SettingsCallbacks = {
 export type Preset = 'high' | 'medium' | 'low';
 
 const PRESETS: Record<Preset, Record<string, boolean>> = {
-  high:   { bloom: true,    starSprites: true,  trails: true,  links: true,  labels: true,  dirOrbits: false, couplings: false, autoRotate: false, expand: false },
-  medium: { bloom: true,   starSprites: true,  trails: false, links: true,  labels: true,  dirOrbits: false, couplings: false, autoRotate: false, expand: false },
-  low:    { bloom: false,  starSprites: false, trails: false, links: true,  labels: false, dirOrbits: false, couplings: false, autoRotate: false, expand: false },
+  high:   { bloom: true,    starSprites: true,  trails: true,  links: true,  labels: true,  dirOrbits: false, autoRotate: false, expand: false },
+  medium: { bloom: true,   starSprites: true,  trails: false, links: true,  labels: true,  dirOrbits: false, autoRotate: false, expand: false },
+  low:    { bloom: false,  starSprites: false, trails: false, links: true,  labels: false, dirOrbits: false, autoRotate: false, expand: false },
 };
 
 type Toggle = { id: string; key: keyof SettingsCallbacks; label: string; defaultOn: boolean };
@@ -28,7 +27,6 @@ const TOGGLES: Toggle[] = [
   { id: 't-labels', key: 'onLabels',      label: 'Labels dossiers',                defaultOn: true },
   { id: 't-orbit',  key: 'onDirOrbits',   label: 'Orbites dossiers (système solaire)', defaultOn: false },
   { id: 't-rot',    key: 'onAutoRotate',  label: 'Auto-rotation caméra',           defaultOn: false },
-  { id: 't-coupl',  key: 'onCouplings',   label: 'Couplages fichiers (gravité)',    defaultOn: false },
   { id: 't-expand', key: 'onExpand',      label: 'Expand sélection',               defaultOn: false },
 ];
 
@@ -114,7 +112,6 @@ export function setupSettings(callbacks: SettingsCallbacks): SettingsHandle {
     setToggle('t-links', cfg.links, callbacks.onLinks);
     setToggle('t-labels', cfg.labels, callbacks.onLabels);
     setToggle('t-orbit', cfg.dirOrbits, callbacks.onDirOrbits);
-    setToggle('t-coupl', cfg.couplings, callbacks.onCouplings);
     setToggle('t-rot', cfg.autoRotate, callbacks.onAutoRotate);
     setToggle('t-expand', cfg.expand, callbacks.onExpand);
   }
