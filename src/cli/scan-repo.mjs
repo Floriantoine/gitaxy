@@ -240,6 +240,32 @@ function attachTimeline(node) {
 }
 attachTimeline(root);
 
+// ----- Compute file couplings (files often modified together) -----
+console.error('[gitview] computing file couplings…');
+const couplingStart = Date.now();
+const pairCount = new Map();
+for (const c of commits) {
+  const paths = [...(c.added || []), ...(c.modified || [])].filter(p => trackedSet.has(p));
+  // Limit per-commit pairs to avoid explosion on huge commits
+  if (paths.length > 80) continue;
+  for (let i = 0; i < paths.length; i++) {
+    for (let j = i + 1; j < paths.length; j++) {
+      const key = paths[i] < paths[j] ? paths[i] + '|' + paths[j] : paths[j] + '|' + paths[i];
+      pairCount.set(key, (pairCount.get(key) || 0) + 1);
+    }
+  }
+}
+// Keep top 150 strongest couplings (min 3 co-modifications)
+const couplings = [...pairCount.entries()]
+  .filter(([, count]) => count >= 3)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 150)
+  .map(([key, count]) => {
+    const [a, b] = key.split('|');
+    return { a, b, count };
+  });
+console.error(`[gitview] couplings: ${couplings.length} pairs (from ${pairCount.size} total) in ${Date.now() - couplingStart}ms`);
+
 const result = {
   meta: {
     repo: basename(absRepo) || '/',
@@ -252,6 +278,7 @@ const result = {
   },
   tree: root,
   commits,
+  couplings,
 };
 
 const outPath = resolve(out);

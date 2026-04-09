@@ -27,6 +27,7 @@ import { createInspector } from './ui/inspector';
 import { createStats } from './ui/stats';
 import { createSearch } from './ui/search';
 import { createMinimap } from './ui/minimap';
+import { createCouplings } from './scene/couplings';
 
 const status = document.getElementById('status');
 function setStatus(text: string) {
@@ -142,6 +143,10 @@ async function main() {
   // ----- Stats overlay -----
   const stats = createStats(repo.commits, layout.files);
   document.getElementById('stats-btn')?.addEventListener('click', () => stats.toggle());
+
+  // ----- File couplings (gravity lines) -----
+  const couplings = createCouplings(scene, repo.couplings ?? [], layout.files);
+  couplings.setEnabled(false); // off by default — can be noisy
 
   // ----- Search (Ctrl+F) -----
   createSearch(layout.files, layout.dirs, fileInstances, (dir) => focus.focusOn(dir));
@@ -361,6 +366,7 @@ async function main() {
       if (b) dirTrails.reset();
       syncTrailVisibility();
     },
+    onCouplings: (b) => couplings.setEnabled(b),
     onAutoRotate: (b) => {
       controls.autoRotate = b;
       controls.autoRotateSpeed = 0.4;
@@ -555,6 +561,7 @@ async function main() {
     tethers.update(commitIdx);
     fileTrails.update(commitIdx);
     dirTrails.update(commitIdx);
+    couplings.update();
     starSprites.tick(t);
     focus.tick();
     labels.tick(camera);

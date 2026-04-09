@@ -45,8 +45,15 @@ export type CommitInfo = {
   deleted?: string[];
 };
 
+export type FileCoupling = {
+  a: string; // file path A
+  b: string; // file path B
+  count: number; // times modified together
+};
+
 export type RepoData = {
   meta: RepoMeta;
   tree: DirNode;
   commits: CommitInfo[];
+  couplings: FileCoupling[];
 };
