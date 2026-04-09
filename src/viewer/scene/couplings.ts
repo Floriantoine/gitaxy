@@ -15,6 +15,8 @@ export type Couplings = {
   /** Apply gravitational attraction + update line positions. Call each frame. */
   update(): void;
   setEnabled(enabled: boolean): void;
+  /** Shared buffer: [x0,y0,z0, x1,y1,z1, ...] gravity offsets per file index. */
+  offsetBuffer: Float32Array;
 };
 
 const GRAVITY_STRENGTH = 25.0;  // very strong pull
@@ -37,7 +39,7 @@ export function createCouplings(
   files: FileNodeData[],
 ): Couplings {
   if (couplingData.length === 0) {
-    return { update() {}, setEnabled() {} };
+    return { update() {}, setEnabled() {}, offsetBuffer: new Float32Array(0) };
   }
 
   // Build path → file index map
@@ -58,7 +60,9 @@ export function createCouplings(
     resolved.push({ idxA: a, idxB: b, strength: c.count / maxCount });
   }
 
-  // Per-file gravity offset (accumulated each frame, decayed)
+  // Shared buffer for gravity offsets (read by instances.animate)
+  const offsetBuffer = new Float32Array(files.length * 3);
+  // Internal working offsets
   const offsets: Vector3[] = new Array(files.length);
   for (let i = 0; i < files.length; i++) offsets[i] = new Vector3();
 
@@ -102,7 +106,10 @@ export function createCouplings(
         } else {
           offsets[i].set(0, 0, 0);
         }
-        files[i].gravityOffset.copy(offsets[i]);
+        const base = i * 3;
+        offsetBuffer[base] = offsets[i].x;
+        offsetBuffer[base + 1] = offsets[i].y;
+        offsetBuffer[base + 2] = offsets[i].z;
       }
       return;
     }
@@ -133,9 +140,12 @@ export function createCouplings(
       if (len > MAX_OFFSET) offsets[i].multiplyScalar(MAX_OFFSET / len);
     }
 
-    // 4. Write to gravityOffset (separate field — won't be overwritten by distribution)
+    // 4. Write to shared buffer (read by instances.animate via raw float indices)
     for (let i = 0; i < files.length; i++) {
-      files[i].gravityOffset.copy(offsets[i]);
+      const base = i * 3;
+      offsetBuffer[base] = offsets[i].x;
+      offsetBuffer[base + 1] = offsets[i].y;
+      offsetBuffer[base + 2] = offsets[i].z;
     }
 
     // 4. Update connection lines
@@ -151,6 +161,7 @@ export function createCouplings(
 
   return {
     update,
+    offsetBuffer,
     setEnabled(b) {
       enabled = b;
       linesMesh.visible = b;

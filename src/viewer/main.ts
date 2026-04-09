@@ -146,7 +146,8 @@ async function main() {
 
   // ----- File couplings (gravity lines) -----
   const couplings = createCouplings(scene, repo.couplings ?? [], layout.files);
-  couplings.setEnabled(false); // off by default — can be noisy
+  couplings.setEnabled(false);
+  fileInstances.setGravityBuffer(couplings.offsetBuffer); // shared buffer for gravity offsets
 
   // ----- Search (Ctrl+F) -----
   createSearch(layout.files, layout.dirs, fileInstances, (dir) => focus.focusOn(dir));
@@ -488,8 +489,9 @@ async function main() {
   function frame() {
     requestAnimationFrame(frame);
     const now = performance.now();
-    const deltaMs = now - lastNow;
+    const rawDelta = now - lastNow;
     lastNow = now;
+    const deltaMs = Math.min(rawDelta, 100); // cap at 100ms to prevent tab-switch explosions
     const t = clock.getElapsedTime();
 
     timeline.tick(deltaMs, now);

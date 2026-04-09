@@ -33,6 +33,8 @@ export type FileInstances = {
   animate(nowMs: number): void;
   fileByInstance(id: number): FileNodeData | undefined;
   setHaloEnabled(enabled: boolean): void;
+  /** Set the shared gravity offset buffer (from couplings module). */
+  setGravityBuffer(buf: Float32Array): void;
   spawn(fileIdx: number, nowMs: number): void;
   pulse(fileIdx: number, nowMs: number): void;
   /** Trigger delete implosion (scale → 0 + red flash). File becomes hidden after. */
@@ -46,6 +48,7 @@ export function createFileInstances(
   files: FileNodeData[],
   spawnParticles: SpawnParticles,
 ): FileInstances {
+  let gravityBuffer: Float32Array | null = null;
   const n = files.length;
 
   const fileMat = new MeshBasicMaterial();
@@ -111,10 +114,11 @@ export function createFileInstances(
 
       // Position is already set by distribution.tick() to the orbit target.
       // We might override it during spawn flight.
-      // Base position + gravity offset (from couplings module)
-      const gx = f.gravityOffset ? f.gravityOffset.x : 0;
-      const gy = f.gravityOffset ? f.gravityOffset.y : 0;
-      const gz = f.gravityOffset ? f.gravityOffset.z : 0;
+      // Base position + gravity offset from shared Float32Array
+      const gBase = i * 3;
+      const gx = gravityBuffer ? gravityBuffer[gBase] : 0;
+      const gy = gravityBuffer ? gravityBuffer[gBase + 1] : 0;
+      const gz = gravityBuffer ? gravityBuffer[gBase + 2] : 0;
       let posX = f.currentPosition.x + gx;
       let posY = f.currentPosition.y + gy;
       let posZ = f.currentPosition.z + gz;
@@ -318,6 +322,7 @@ export function createFileInstances(
     fileMesh,
     haloMesh,
     animate,
+    setGravityBuffer(buf: Float32Array) { gravityBuffer = buf; },
     fileByInstance: (id: number) => files[id],
     setHaloEnabled(enabled: boolean) { haloMesh.visible = enabled; },
     spawn(fileIdx: number, nowMs: number) {
