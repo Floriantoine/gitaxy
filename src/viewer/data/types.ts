@@ -10,6 +10,8 @@ export type FileNode = {
   bornAt: number;
   /** Sorted commit indices where this file was modified. */
   modifiedAt: number[];
+  /** Commit indices where this file was deleted (may be re-created later). */
+  deletedAt: number[];
 };
 
 export type DirNode = {

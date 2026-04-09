@@ -176,7 +176,7 @@ for (const line of logLines) {
 
     if (status === 'A' || status === 'C') {
       if (!fileTimeline.has(path)) {
-        fileTimeline.set(path, { bornAt: commitIdx, modifiedAt: [] });
+        fileTimeline.set(path, { bornAt: commitIdx, modifiedAt: [], deletedAt: [] });
         currentCommit.added.push(path);
       } else {
         fileTimeline.get(path).modifiedAt.push(commitIdx);
@@ -185,17 +185,20 @@ for (const line of logLines) {
     } else if (status === 'M') {
       if (!fileTimeline.has(path)) {
         // First M without seeing A — initial commit edge case
-        fileTimeline.set(path, { bornAt: commitIdx, modifiedAt: [] });
+        fileTimeline.set(path, { bornAt: commitIdx, modifiedAt: [], deletedAt: [] });
         currentCommit.added.push(path);
       } else {
         fileTimeline.get(path).modifiedAt.push(commitIdx);
         currentCommit.modified.push(path);
       }
     } else if (status === 'D') {
-      // Track delete events for currently-tracked files (they were deleted then re-created)
+      // Track delete events per file + per commit
       if (trackedSet.has(path)) {
         currentCommit.deleted = currentCommit.deleted || [];
         currentCommit.deleted.push(path);
+        if (fileTimeline.has(path)) {
+          fileTimeline.get(path).deletedAt.push(commitIdx);
+        }
       }
     }
     // R (renamed) still skipped
@@ -206,7 +209,7 @@ if (currentCommit) commits.push(currentCommit);
 // Default for files we never saw an event for (orphans — defensive)
 for (const path of files) {
   if (!fileTimeline.has(path)) {
-    fileTimeline.set(path, { bornAt: 0, modifiedAt: [] });
+    fileTimeline.set(path, { bornAt: 0, modifiedAt: [], deletedAt: [] });
   }
 }
 
@@ -229,6 +232,7 @@ function attachTimeline(node) {
     const t = fileTimeline.get(node._path);
     node.bornAt = t ? t.bornAt : 0;
     node.modifiedAt = t ? t.modifiedAt : [];
+    node.deletedAt = t ? t.deletedAt : [];
     delete node._path;
     return;
   }

@@ -1,0 +1,99 @@
+#!/usr/bin/env node
+/**
+ * gitView — 3D git constellation visualizer.
+ *
+ * Usage:
+ *   npx gitview [repo-path]       # scan + open viewer
+ *   npx gitview                   # use current directory
+ *   npx gitview /path/to/repo     # use specified repo
+ *   npx gitview --port 3000       # custom port
+ */
+
+import { execFileSync, spawn } from 'node:child_process';
+import { existsSync, mkdirSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const ROOT = resolve(__dirname, '../..');
+
+// Parse args
+let repoPath = '.';
+let port = 5175;
+const args = process.argv.slice(2);
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--port' && args[i + 1]) { port = parseInt(args[i + 1]); i++; }
+  else if (args[i] === '--help' || args[i] === '-h') {
+    console.log(`
+  gitView — 3D git constellation visualizer
+
+  Usage:
+    gitview [repo-path] [--port PORT]
+
+  Examples:
+    gitview                    # visualize current directory
+    gitview /path/to/repo      # visualize a specific repo
+    gitview . --port 3000      # custom port
+
+  The viewer opens at http://localhost:PORT
+`);
+    process.exit(0);
+  }
+  else if (!args[i].startsWith('-')) { repoPath = args[i]; }
+}
+
+repoPath = resolve(repoPath);
+
+// Verify it's a git repo
+try {
+  execFileSync('git', ['-C', repoPath, 'rev-parse', '--git-dir'], { stdio: 'ignore' });
+} catch {
+  console.error(`❌ ${repoPath} is not a git repository.`);
+  process.exit(1);
+}
+
+console.log(`\n  🌌 gitView — 3D Git Constellation\n`);
+console.log(`  Repo:   ${repoPath}`);
+
+// Step 1: Scan
+const scanScript = join(ROOT, 'src/cli/scan-repo.mjs');
+const dataDir = join(ROOT, 'public/data');
+const dataFile = join(dataDir, 'repo.json');
+mkdirSync(dataDir, { recursive: true });
+
+console.log(`  Scan:   analyzing git history...\n`);
+try {
+  execFileSync('node', [scanScript, repoPath, dataFile], { stdio: 'inherit' });
+} catch (err) {
+  console.error('❌ Scan failed.');
+  process.exit(1);
+}
+
+// Step 2: Start Vite dev server
+console.log(`\n  🚀 Starting viewer on http://localhost:${port}\n`);
+
+const vite = spawn('npx', ['vite', '--port', String(port), '--strictPort', '--host', '127.0.0.1'], {
+  cwd: ROOT,
+  stdio: 'inherit',
+  shell: true,
+});
+
+// Open browser after a short delay
+setTimeout(() => {
+  const url = `http://localhost:${port}`;
+  const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+  try {
+    spawn(openCmd, [url], { stdio: 'ignore', shell: true });
+  } catch { /* ignore if can't open browser */ }
+}, 2000);
+
+vite.on('close', (code) => {
+  process.exit(code ?? 0);
+});
+
+// Handle Ctrl+C gracefully
+process.on('SIGINT', () => {
+  vite.kill();
+  process.exit(0);
+});

@@ -35,6 +35,8 @@ export type FileNodeData = {
   bornAt: number;
   /** Sorted commit indices where this file was modified. */
   modifiedAt: number[];
+  /** Commit indices where this file was deleted. */
+  deletedAt: number[];
   // ----- Dynamic distribution (managed by distribution.ts) -----
   /** Index among siblings of same parent, sorted by bornAt. Set by distribution. */
   siblingIndex: number;
@@ -221,6 +223,7 @@ export function buildLayout(tree: DirNode): Layout {
         orbitRadius,
         bornAt: file.bornAt,
         modifiedAt: file.modifiedAt,
+        deletedAt: file.deletedAt || [],
         // Populated by distribution.ts
         siblingIndex: 0,
         targetDirection: new Vector3(1, 0, 0),

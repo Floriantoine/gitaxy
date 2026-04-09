@@ -24,6 +24,9 @@ import { setupTimelineUI } from './ui/timeline-ui';
 import { createFpsCounter } from './ui/fps';
 import { createAuthorComets } from './scene/author-comets';
 import { createInspector } from './ui/inspector';
+import { createStats } from './ui/stats';
+import { createSearch } from './ui/search';
+import { createMinimap } from './ui/minimap';
 
 const status = document.getElementById('status');
 function setStatus(text: string) {
@@ -131,8 +134,20 @@ async function main() {
     }
     for (const fi of job.deletedIndices) {
       fileInstances.implode(fi, nowMs);
+      // Also pulse the file red right before implosion (visible shockwave)
+      fileInstances.pulse(fi, nowMs);
     }
   };
+
+  // ----- Stats overlay -----
+  const stats = createStats(repo.commits, layout.files);
+  document.getElementById('stats-btn')?.addEventListener('click', () => stats.toggle());
+
+  // ----- Search (Ctrl+F) -----
+  createSearch(layout.files, layout.dirs, fileInstances, (dir) => focus.focusOn(dir));
+
+  // ----- Minimap -----
+  const minimap = createMinimap(camera, layout);
 
   // ----- Inspector panel (bottom-left info) -----
   const inspector = createInspector(repo.commits);
@@ -275,7 +290,7 @@ async function main() {
         if (cnt > maxCount) { maxCount = cnt; destDir = p; }
       }
 
-      // Deleted files
+      // Deleted files (takes priority — remove from modified if also present)
       for (const path of (commit.deleted || [])) {
         const fi = fileByPath.get(path);
         if (fi === undefined) continue;
@@ -285,6 +300,11 @@ async function main() {
         const cnt = (parentCounts.get(p) ?? 0) + 1;
         parentCounts.set(p, cnt);
         if (cnt > maxCount) { maxCount = cnt; destDir = p; }
+      }
+      // Remove files from modified if they're being deleted in the same batch
+      const deletedSet = new Set(deletedIndices);
+      for (let mi = modifiedIndices.length - 1; mi >= 0; mi--) {
+        if (deletedSet.has(modifiedIndices[mi])) modifiedIndices.splice(mi, 1);
       }
 
       if ((addedIndices.length > 0 || modifiedIndices.length > 0 || deletedIndices.length > 0) && targetPositions.length > 0) {
@@ -569,6 +589,8 @@ async function main() {
     labels.render(scene, camera);
 
     settings.setFps(fps.tick(now));
+    stats.update(commitIdx);
+    minimap.render(scene, renderer);
   }
   frame();
 

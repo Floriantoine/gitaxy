@@ -274,11 +274,32 @@ export function createFileInstances(
     }
   }
 
+  /** Check if a file is visible at a given commit (accounts for delete/re-create cycles). */
+  function isVisibleAt(f: FileNodeData, commitIdx: number): boolean {
+    if (f.bornAt > commitIdx) return false;
+    if (f.deletedAt.length === 0) return true;
+    // Find the last event (A/M/D) before commitIdx to determine alive/dead state.
+    // Any event after a D means re-creation.
+    let lastEventType: 'alive' | 'dead' = 'alive'; // born = alive
+    // Merge all events sorted by commitIdx
+    const events: Array<{ idx: number; dead: boolean }> = [];
+    events.push({ idx: f.bornAt, dead: false });
+    for (const m of f.modifiedAt) events.push({ idx: m, dead: false });
+    for (const d of f.deletedAt) events.push({ idx: d, dead: true });
+    events.sort((a, b) => a.idx - b.idx);
+    for (const e of events) {
+      if (e.idx > commitIdx) break;
+      lastEventType = e.dead ? 'dead' : 'alive';
+    }
+    return lastEventType === 'alive';
+  }
+
   function snapToCommit(commitIdx: number) {
     for (let i = 0; i < n; i++) {
-      hidden[i] = files[i].bornAt > commitIdx ? 1 : 0;
+      hidden[i] = isVisibleAt(files[i], commitIdx) ? 0 : 1;
       spawnStart[i] = -1;
       pulseStart[i] = -1;
+      deleteStart[i] = -1;
       particleTriggered[i] = 0;
       const ci = i * 3;
       tmpColor.setRGB(originalColors[ci], originalColors[ci + 1], originalColors[ci + 2]);
@@ -300,8 +321,25 @@ export function createFileInstances(
       spawnStart[fileIdx] = nowMs;
       particleTriggered[fileIdx] = 0;
     },
-    pulse(fileIdx: number, nowMs: number) { pulseStart[fileIdx] = nowMs; },
-    implode(fileIdx: number, nowMs: number) { deleteStart[fileIdx] = nowMs; },
+    pulse(fileIdx: number, nowMs: number) {
+      // If file was deleted (hidden), treat pulse as re-creation (spawn)
+      if (hidden[fileIdx] === 1) {
+        hidden[fileIdx] = 0;
+        spawnStart[fileIdx] = nowMs;
+        spawnParticles.trigger(files[fileIdx].currentPosition, files[fileIdx].color, nowMs);
+        return;
+      }
+      pulseStart[fileIdx] = nowMs;
+    },
+    implode(fileIdx: number, nowMs: number) {
+      deleteStart[fileIdx] = nowMs;
+      spawnStart[fileIdx] = -1;    // cancel any pending spawn
+      pulseStart[fileIdx] = -1;    // cancel any pending pulse
+      particleTriggered[fileIdx] = 0;
+      const f = files[fileIdx];
+      spawnParticles.explode(f.currentPosition, f.color, nowMs + 150, f.radius);
+      spawnParticles.explode(f.currentPosition, f.color, nowMs + 300, f.radius * 0.7);
+    },
     setHidden(fileIdx: number, isHidden: boolean) { hidden[fileIdx] = isHidden ? 1 : 0; },
     snapToCommit,
   };
