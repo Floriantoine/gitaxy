@@ -92,14 +92,17 @@ export function createCouplings(
   let enabled = false;
   const tmpDir = new Vector3();
 
+
   function update() {
     if (!enabled) {
       // Decay offsets back to zero when disabled
       for (let i = 0; i < files.length; i++) {
         if (offsets[i].lengthSq() > 0.001) {
           offsets[i].multiplyScalar(0.9);
-          files[i].currentPosition.add(offsets[i]);
+        } else {
+          offsets[i].set(0, 0, 0);
         }
+        files[i].gravityOffset.copy(offsets[i]);
       }
       return;
     }
@@ -110,31 +113,28 @@ export function createCouplings(
     }
 
     // 2. Apply gravitational attraction — CONSTANT force (no distance falloff)
-    //    so even files across the constellation visibly attract
     for (const c of resolved) {
       const a = files[c.idxA];
       const b = files[c.idxB];
       tmpDir.subVectors(b.currentPosition, a.currentPosition);
       const dist = tmpDir.length();
-      if (dist < 1) continue; // same position, skip
-      tmpDir.divideScalar(dist); // normalize
+      if (dist < 1) continue;
+      tmpDir.divideScalar(dist);
       const force = GRAVITY_STRENGTH * c.strength;
       tmpDir.multiplyScalar(force);
       offsets[c.idxA].add(tmpDir);
       offsets[c.idxB].sub(tmpDir);
     }
 
-    // 3. Cap offsets to prevent files from flying too far from base position
+    // 3. Cap offsets
     for (let i = 0; i < files.length; i++) {
       const len = offsets[i].length();
       if (len > MAX_OFFSET) offsets[i].multiplyScalar(MAX_OFFSET / len);
     }
 
-    // 4. Apply offsets to file positions
+    // 4. Write to gravityOffset (separate field — won't be overwritten by distribution)
     for (let i = 0; i < files.length; i++) {
-      if (offsets[i].lengthSq() > 0.01) {
-        files[i].currentPosition.add(offsets[i]);
-      }
+      files[i].gravityOffset.copy(offsets[i]);
     }
 
     // 4. Update connection lines

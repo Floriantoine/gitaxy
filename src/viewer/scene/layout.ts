@@ -46,6 +46,8 @@ export type FileNodeData = {
   currentDirection: Vector3;
   /** World position = parent + currentDirection * orbitRadius. Updated each frame. */
   currentPosition: Vector3;
+  /** Gravity offset from couplings (added on top of currentPosition in instances). */
+  gravityOffset: Vector3;
 };
 
 export type DirLink = { parent: DirNodeData; child: DirNodeData };
@@ -229,6 +231,7 @@ export function buildLayout(tree: DirNode): Layout {
         targetDirection: new Vector3(1, 0, 0),
         currentDirection: new Vector3(1, 0, 0),
         currentPosition: parent.position.clone(),
+        gravityOffset: new Vector3(),
       });
     });
   }
