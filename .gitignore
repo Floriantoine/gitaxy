@@ -6,3 +6,4 @@ public/data/
 .DS_Store
 .vscode/
 .idea/
+.worktrees/
