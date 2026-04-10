@@ -164,6 +164,19 @@ export function buildLayout(tree: DirNode): Layout {
     );
     directions.forEach((p) => p.applyQuaternion(orient));
 
+    // Bias all children OUTWARD (away from grandparent → no backtracking toward root)
+    if (parent.parent) {
+      const outward = new Vector3().subVectors(parent.position, parent.parent.position);
+      if (outward.lengthSq() > 1) {
+        outward.normalize();
+        const OUTWARD_BIAS = 0.6; // how strongly to push outward (0 = no bias, 1 = full)
+        directions.forEach((p) => {
+          p.addScaledVector(outward, OUTWARD_BIAS);
+          p.normalize();
+        });
+      }
+    }
+
     // Per-child radius: proportional to child's subtree size.
     // Small dirs stay CLOSE, big dirs go FAR. No fixed base — purely proportional.
     const childArr: DirNodeData[] = [];
