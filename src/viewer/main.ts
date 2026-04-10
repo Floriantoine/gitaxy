@@ -380,7 +380,7 @@ async function main() {
   let orbitToggle = false;
 
   // ----- UI -----
-  setupLegend();
+  const legend = setupLegend(layout.files);
   const settings = setupSettings({
     onBloom: (b) => pipeline.setBloomEnabled(b),
     onStarSprites: (b) => starSprites.setEnabled(b),
@@ -632,6 +632,7 @@ async function main() {
 
     settings.setFps(fps.tick(now));
     stats.update(commitIdx);
+    legend.update(commitIdx);
     if (!isLargeRepo) minimap.render(scene, renderer); // skip minimap double-render for large repos
   }
   frame();

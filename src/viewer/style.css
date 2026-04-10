@@ -88,17 +88,42 @@ html, body {
   font-size: 11px;
   backdrop-filter: blur(6px);
   z-index: 10;
+  min-width: 180px;
 }
 #legend .item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin: 3px 0;
 }
 #legend .swatch {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+#legend .ext-label {
+  width: 42px;
+  flex-shrink: 0;
+}
+#legend .bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+#legend .bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+#legend .bar-num {
+  width: 28px;
+  text-align: right;
+  color: #888;
+  font-size: 10px;
+  flex-shrink: 0;
 }
 
 #settings {
