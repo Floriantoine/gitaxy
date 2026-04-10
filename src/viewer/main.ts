@@ -420,7 +420,7 @@ async function main() {
         }
       }
     },
-  }, isLargeRepo ? { bloom: false, star: false, trails: false } : undefined);
+  }, isLargeRepo ? { bloom: false, star: false, trails: false, labels: false } : undefined);
 
   let lastTrackedDir: DirNodeData | null = null;
 

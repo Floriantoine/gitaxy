@@ -164,14 +164,16 @@ export function buildLayout(tree: DirNode): Layout {
     );
     directions.forEach((p) => p.applyQuaternion(orient));
 
-    // Per-child radius: big children (many files) → far, small children → close
-    const baseRadius = childRadiusFor(parent.depth, parent.fileCount) * 0.5; // minimum distance
+    // Per-child radius: proportional to child's subtree size.
+    // Small dirs stay CLOSE, big dirs go FAR. No fixed base — purely proportional.
     const childArr: DirNodeData[] = [];
     dirChildren.forEach((child, i) => {
       const childFileCount = countFiles(child);
-      // Scale with cube-root for large repos (sqrt grows too fast for 5000+ files)
-      const childScale = Math.cbrt(childFileCount) * 8 + Math.sqrt(childFileCount) * 0.8;
-      const perChildRadius = baseRadius + childScale;
+      // Minimum distance: just enough to not overlap with parent mesh
+      const minDist = 8 + Math.cbrt(Math.max(1, parent.fileCount)) * 2;
+      // Scale: driven by child's own size (cbrt for sub-linear growth on huge dirs)
+      const childScale = Math.cbrt(childFileCount) * 10 + Math.sqrt(childFileCount) * 0.6;
+      const perChildRadius = minDist + childScale;
       const localPos = directions[i].multiplyScalar(perChildRadius);
       const worldPos = parent.position.clone().add(localPos);
       const color = parent.depth === 0 ? DIR_PALETTE[i % DIR_PALETTE.length] : parentColor;

@@ -50,30 +50,35 @@ export function createDirNodes(scene: Scene, layout: Layout): DirNodeRender[] {
     const isRoot = d.depth === 0;
     const radius = dirRadius(d.fileCount, isRoot);
 
-    // Dir core: semi-transparent + wireframe overlay for structural look
-    const mat = new MeshBasicMaterial({ color: d.color, transparent: true, opacity: 0.4 });
+    // Dir core — simplified for large repos (skip wireframe + halo to reduce draw calls)
+    const isLarge = layout.dirs.length > 500;
+    const mat = new MeshBasicMaterial({
+      color: d.color,
+      transparent: !isLarge, // opaque for large repos (cheaper)
+      opacity: isLarge ? 1 : 0.4,
+      wireframe: isLarge && d.depth > 1, // wireframe only for deep dirs in large repos (visual distinction without extra mesh)
+    });
     const mesh = new Mesh(dirGeo(radius), mat);
     mesh.position.copy(d.position);
     mesh.userData = { kind: 'dir', name: d.name, fullPath: d.fullPath, _data: d };
     scene.add(mesh);
 
-    // Wireframe overlay — makes dirs look like structural hubs, not data dots
-    const wireMat = new MeshBasicMaterial({ color: d.color, wireframe: true, transparent: true, opacity: 0.6 });
-    const wire = new Mesh(dirGeo(radius), wireMat);
-    wire.position.set(0, 0, 0);
-    mesh.add(wire);
+    // Wireframe + halo only for small repos (< 500 dirs)
+    let halo: Mesh;
+    if (!isLarge) {
+      const wireMat = new MeshBasicMaterial({ color: d.color, wireframe: true, transparent: true, opacity: 0.6 });
+      const wire = new Mesh(dirGeo(radius), wireMat);
+      mesh.add(wire);
 
-    // Halo ring
-    const haloMat = new MeshBasicMaterial({
-      color: d.color,
-      transparent: true,
-      opacity: 0.1,
-      blending: AdditiveBlending,
-      depthWrite: false,
-    });
-    const halo = new Mesh(dirHaloGeo(radius), haloMat);
-    halo.position.set(0, 0, 0);
-    mesh.add(halo);
+      const haloMat = new MeshBasicMaterial({
+        color: d.color, transparent: true, opacity: 0.1,
+        blending: AdditiveBlending, depthWrite: false,
+      });
+      halo = new Mesh(dirHaloGeo(radius), haloMat);
+      mesh.add(halo);
+    } else {
+      halo = mesh; // placeholder — no separate halo
+    }
 
     out.push({ data: d, mesh, halo, radius });
   }
