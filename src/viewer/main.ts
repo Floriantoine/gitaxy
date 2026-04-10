@@ -33,15 +33,37 @@ function setStatus(text: string) {
   if (status) status.textContent = text;
 }
 
+// Loading screen helpers
+const loadingEl = document.getElementById('loading');
+const loadingStatus = loadingEl?.querySelector('.loading-status') as HTMLElement | null;
+const loadingFill = loadingEl?.querySelector('.loading-bar-fill') as HTMLElement | null;
+const loadingDetail = loadingEl?.querySelector('.loading-detail') as HTMLElement | null;
+
+function setLoading(pct: number, msg: string, detail = '') {
+  if (loadingFill) loadingFill.style.width = pct + '%';
+  if (loadingStatus) loadingStatus.textContent = msg;
+  if (loadingDetail) loadingDetail.textContent = detail;
+}
+function hideLoading() {
+  if (loadingEl) loadingEl.classList.add('done');
+  setTimeout(() => { if (loadingEl) loadingEl.style.display = 'none'; }, 600);
+}
+
 async function main() {
   // ----- Load data -----
-  setStatus('Chargement de /data/repo.json…');
+  setLoading(5, 'Chargement des données...');
   const repo = await loadRepo('/data/repo.json');
+  setLoading(20, 'Données chargées', `${repo.meta.fileCount} fichiers · ${repo.meta.commitCount ?? 0} commits`);
+  // Yield to let the loading bar render
+  await new Promise(r => setTimeout(r, 50));
+
   setStatus(
     `${repo.meta.repo} — ${repo.meta.fileCount} fichiers · ${(repo.meta.totalLines ?? 0).toLocaleString('fr-FR')} lignes · ${repo.meta.commitCount ?? 0} commits`,
   );
 
   // ----- Scene -----
+  setLoading(25, 'Initialisation de la scène...');
+  await new Promise(r => setTimeout(r, 10));
   const canvas = document.getElementById('c') as HTMLCanvasElement;
   const { scene, camera, renderer, controls } = setupScene(canvas);
   const pipeline = createPipeline(renderer, scene, camera);
@@ -50,21 +72,29 @@ async function main() {
   createStarfield(scene);
 
   // ----- Layout -----
+  setLoading(35, 'Calcul du layout 3D...', `${repo.meta.fileCount} fichiers à positionner`);
+  await new Promise(r => setTimeout(r, 10));
   const layout = buildLayout(repo.tree);
   console.log(
     `[gitview] layout: ${layout.dirs.length} dirs, ${layout.files.length} files, bounds=${layout.boundsRadius.toFixed(0)}`,
   );
 
   // ----- Dir meshes -----
+  setLoading(50, 'Création des dossiers...', `${layout.dirs.length} dossiers`);
+  await new Promise(r => setTimeout(r, 10));
   const dirNodes = createDirNodes(scene, layout);
 
   // ----- Spawn particles (converging sparkles for file creation) -----
   const spawnParticles = createSpawnParticles(scene);
 
-  // ----- File instances (1 draw call instead of 2566 meshes) -----
+  // ----- File instances -----
+  setLoading(60, 'Création des fichiers...', `${layout.files.length} fichiers (InstancedMesh)`);
+  await new Promise(r => setTimeout(r, 10));
   const fileInstances = createFileInstances(scene, layout.files, spawnParticles);
 
-  // ----- Dynamic distribution (redistribution for BOTH dirs AND files) -----
+  // ----- Dynamic distribution -----
+  setLoading(70, 'Distribution spatiale...', 'Placement initial des éléments');
+  await new Promise(r => setTimeout(r, 10));
   const distribution = createDistribution(layout, dirNodes);
 
   // ----- Links -----
@@ -485,6 +515,10 @@ async function main() {
       setInterval(updatePos, 2000);
     }
   }
+
+  setLoading(95, 'Prêt !', `${layout.files.length} fichiers · ${layout.dirs.length} dossiers`);
+  await new Promise(r => setTimeout(r, 200));
+  hideLoading();
 
   // ----- Loop -----
   const clock = new Clock();

@@ -1,3 +1,31 @@
+/* Loading screen */
+#loading {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #05050d;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: -apple-system, system-ui, sans-serif; color: #ddd;
+  transition: opacity 0.5s ease;
+}
+#loading.done { opacity: 0; pointer-events: none; }
+#loading .loading-title {
+  font-size: 28px; font-weight: 700; color: #ffeeaa;
+  letter-spacing: 0.08em; margin-bottom: 24px;
+}
+#loading .loading-status { font-size: 14px; color: #aaa; margin-bottom: 12px; }
+#loading .loading-bar-wrap {
+  width: 320px; height: 6px; background: #1a1a2a;
+  border-radius: 3px; overflow: hidden;
+}
+#loading .loading-bar-fill {
+  height: 100%; width: 0%; border-radius: 3px;
+  background: linear-gradient(90deg, #4a90e2, #ffeeaa);
+  transition: width 0.3s ease;
+}
+#loading .loading-detail {
+  font-size: 11px; color: #666; margin-top: 8px;
+  font-family: ui-monospace, monospace;
+}
+
 :root {
   color-scheme: dark;
 }
