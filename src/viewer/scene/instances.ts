@@ -81,7 +81,8 @@ export function createFileInstances(
   const spawnStart = new Float32Array(n).fill(-1);
   const pulseStart = new Float32Array(n).fill(-1);
   const deleteStart = new Float32Array(n).fill(-1);
-  const particleTriggered = new Uint8Array(n); // 0 = not yet, 1 = done
+  const particleTriggered = new Uint8Array(n);
+  let needsFullUpdate = true; // after snap or first frame
 
   // Initial matrices
   const tmpMat = new Matrix4();
@@ -98,21 +99,46 @@ export function createFileInstances(
   scene.add(haloMesh);
   scene.add(fileMesh);
 
-  /**
-   * Called each frame AFTER distribution.tick() has updated currentPosition.
-   * Applies spawn/pulse modifiers and writes instance matrices.
-   */
+  // Active set: only files with pending animations are processed per frame.
+  // All others keep their last matrix (static rendering via GPU).
+  const activeSet = new Set<number>();
+
   function animate(nowMs: number) {
     let colorDirty = false;
 
-    for (let i = 0; i < n; i++) {
-      const f = files[i];
-
-      // FAST PATH: skip hidden files entirely (huge perf gain for timeline with many hidden)
-      if (hidden[i] === 1 && spawnStart[i] < 0 && deleteStart[i] < 0) {
-        // Only write matrix if file was recently hidden (not already zeroed)
-        continue;
+    // Full update: process all visible files (after snap or init)
+    if (needsFullUpdate) {
+      needsFullUpdate = false;
+      for (let i = 0; i < n; i++) {
+        writeMatrix(i, files[i], nowMs, false);
       }
+      fileMesh.instanceMatrix.needsUpdate = true;
+      haloMesh.instanceMatrix.needsUpdate = true;
+      return;
+    }
+
+    // Incremental: only process active files (spawning, pulsing, deleting)
+    if (activeSet.size === 0) return; // nothing to do — GPU keeps last matrices
+
+    const toRemove: number[] = [];
+    for (const i of activeSet) {
+      const f = files[i];
+      const stillActive = writeMatrix(i, f, nowMs, true);
+      if (!stillActive) toRemove.push(i);
+    }
+    for (const i of toRemove) activeSet.delete(i);
+
+    if (activeSet.size > 0 || toRemove.length > 0) {
+      fileMesh.instanceMatrix.needsUpdate = true;
+      haloMesh.instanceMatrix.needsUpdate = true;
+    }
+    return;
+  }
+
+  /** Write matrix for file i. Returns true if file still needs per-frame updates. */
+  function writeMatrix(i: number, f: FileNodeData, nowMs: number, trackColor: boolean): boolean {
+    let colorDirty = false;
+    let stillActive = false;
 
       let scale = f.radius;
       let vis = true;
@@ -260,7 +286,6 @@ export function createFileInstances(
 
       if (!vis) scale = 0;
 
-      // Write-back position so tethers/trails follow the flight, not the orbit target
       f.currentPosition.set(posX, posY, posZ);
 
       tmpScale.set(scale, scale, scale);
@@ -268,14 +293,15 @@ export function createFileInstances(
       tmpMat.scale(tmpScale);
       fileMesh.setMatrixAt(i, tmpMat);
       haloMesh.setMatrixAt(i, tmpMat);
-    }
 
-    fileMesh.instanceMatrix.needsUpdate = true;
-    haloMesh.instanceMatrix.needsUpdate = true;
-    if (colorDirty) {
-      if (fileMesh.instanceColor) fileMesh.instanceColor.needsUpdate = true;
-      if (haloMesh.instanceColor) haloMesh.instanceColor.needsUpdate = true;
-    }
+      // Track if this file still needs per-frame updates
+      if (spawnStart[i] >= 0 || pulseStart[i] >= 0 || deleteStart[i] >= 0) stillActive = true;
+
+      if (trackColor && colorDirty) {
+        if (fileMesh.instanceColor) fileMesh.instanceColor.needsUpdate = true;
+        if (haloMesh.instanceColor) haloMesh.instanceColor.needsUpdate = true;
+      }
+      return stillActive;
   }
 
   /** Check if a file is visible at a given commit. Fast path for files without deletes. */
@@ -300,6 +326,8 @@ export function createFileInstances(
   }
 
   function snapToCommit(commitIdx: number) {
+    activeSet.clear();
+    needsFullUpdate = true; // force full matrix rebuild
     for (let i = 0; i < n; i++) {
       hidden[i] = isVisibleAt(files[i], commitIdx) ? 0 : 1;
       spawnStart[i] = -1;
@@ -325,25 +353,28 @@ export function createFileInstances(
       hidden[fileIdx] = 0;
       spawnStart[fileIdx] = nowMs;
       particleTriggered[fileIdx] = 0;
+      activeSet.add(fileIdx);
     },
     pulse(fileIdx: number, nowMs: number) {
-      // If file was deleted (hidden), treat pulse as re-creation (spawn)
       if (hidden[fileIdx] === 1) {
         hidden[fileIdx] = 0;
         spawnStart[fileIdx] = nowMs;
         spawnParticles.trigger(files[fileIdx].currentPosition, files[fileIdx].color, nowMs);
+        activeSet.add(fileIdx);
         return;
       }
       pulseStart[fileIdx] = nowMs;
+      activeSet.add(fileIdx);
     },
     implode(fileIdx: number, nowMs: number) {
       deleteStart[fileIdx] = nowMs;
-      spawnStart[fileIdx] = -1;    // cancel any pending spawn
-      pulseStart[fileIdx] = -1;    // cancel any pending pulse
+      spawnStart[fileIdx] = -1;
+      pulseStart[fileIdx] = -1;
       particleTriggered[fileIdx] = 0;
       const f = files[fileIdx];
       spawnParticles.explode(f.currentPosition, f.color, nowMs + 150, f.radius);
       spawnParticles.explode(f.currentPosition, f.color, nowMs + 300, f.radius * 0.7);
+      activeSet.add(fileIdx);
     },
     setHidden(fileIdx: number, isHidden: boolean) { hidden[fileIdx] = isHidden ? 1 : 0; },
     snapToCommit,

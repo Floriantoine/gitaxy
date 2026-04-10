@@ -124,6 +124,9 @@ type FileGroup = {
   flatness: number;
   tiltAxis: Vector3;
   lastNVisible: number;
+  _lastParentX: number;
+  _lastParentY: number;
+  _lastParentZ: number;
 };
 
 // ---- Main ----
@@ -186,6 +189,7 @@ export function createDistribution(layout: Layout, dirRenders: DirNodeRender[]):
       flatness: 0.25 + Math.random() * 0.75,
       tiltAxis: fileTilt,
       lastNVisible: -1,
+      _lastParentX: NaN, _lastParentY: NaN, _lastParentZ: NaN,
     });
   }
 
@@ -254,21 +258,28 @@ export function createDistribution(layout: Layout, dirRenders: DirNodeRender[]):
         if (r) r.mesh.position.copy(child.position);
       }
     }
-    // Files: recompute position from parent (lerp only if direction differs from target)
+    // Files: recompute position from parent.
+    // Skip lerp if direction already at target. Skip position update if parent didn't move.
     for (const g of fileGroups) {
       const n = g.lastNVisible;
+      if (n === 0) continue;
+      const parentMoved = g.dir.position.x !== g._lastParentX || g.dir.position.y !== g._lastParentY || g.dir.position.z !== g._lastParentZ;
+      (g as any)._lastParentX = g.dir.position.x;
+      (g as any)._lastParentY = g.dir.position.y;
+      (g as any)._lastParentZ = g.dir.position.z;
+      const fileExpansion = getExpansion(g.dir);
       for (let j = 0; j < n; j++) {
         const f = g.files[j];
-        // Skip expensive lerp+normalize if direction is already at target
         const dx = f.targetDirection.x - f.currentDirection.x;
         const dy = f.targetDirection.y - f.currentDirection.y;
         const dz = f.targetDirection.z - f.currentDirection.z;
-        if (dx * dx + dy * dy + dz * dz > 0.0001) {
+        const needsLerp = dx * dx + dy * dy + dz * dz > 0.0001;
+        if (!needsLerp && !parentMoved) continue; // nothing changed → skip
+        if (needsLerp) {
           f.currentDirection.lerp(f.targetDirection, FILE_LERP);
           const len = f.currentDirection.length();
           if (len > 1e-6) f.currentDirection.divideScalar(len);
         }
-        const fileExpansion = getExpansion(f.parent);
         f.currentPosition.copy(f.parent.position)
           .addScaledVector(f.currentDirection, f.orbitRadius * fileExpansion);
       }
