@@ -169,11 +169,11 @@ export function buildLayout(tree: DirNode): Layout {
     const childArr: DirNodeData[] = [];
     dirChildren.forEach((child, i) => {
       const childFileCount = countFiles(child);
-      // Minimum distance: just enough to not overlap with parent mesh
       const minDist = 8 + Math.cbrt(Math.max(1, parent.fileCount)) * 2;
-      // Scale: driven by child's own size (cbrt for sub-linear growth on huge dirs)
       const childScale = Math.cbrt(childFileCount) * 10 + Math.sqrt(childFileCount) * 0.6;
-      const perChildRadius = minDist + childScale;
+      // Also ensure child is far enough to contain its OWN subtree without overlapping siblings
+      const childOwnSpread = childRadiusFor(parent.depth + 1, childFileCount);
+      const perChildRadius = Math.max(minDist + childScale, childOwnSpread * 1.5);
       const localPos = directions[i].multiplyScalar(perChildRadius);
       const worldPos = parent.position.clone().add(localPos);
       const color = parent.depth === 0 ? DIR_PALETTE[i % DIR_PALETTE.length] : parentColor;
