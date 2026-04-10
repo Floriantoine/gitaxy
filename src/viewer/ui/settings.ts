@@ -34,7 +34,7 @@ export type SettingsHandle = {
   setFps(fps: number): void;
 };
 
-export function setupSettings(callbacks: SettingsCallbacks): SettingsHandle {
+export function setupSettings(callbacks: SettingsCallbacks, defaultOverrides?: Partial<Record<string, boolean>>): SettingsHandle {
   const root = document.getElementById('settings');
   if (!root) throw new Error('#settings element missing in index.html');
 
@@ -51,10 +51,14 @@ export function setupSettings(callbacks: SettingsCallbacks): SettingsHandle {
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.id = t.id;
-    cb.checked = t.defaultOn;
+    // Apply override if provided, otherwise use default
+    const overrideKey = t.id.replace('t-', '');
+    cb.checked = defaultOverrides && overrideKey in defaultOverrides ? defaultOverrides[overrideKey]! : t.defaultOn;
     cb.addEventListener('change', () => {
       callbacks[t.key](cb.checked);
     });
+    // Fire callback with initial state so the scene matches the checkbox
+    callbacks[t.key](cb.checked);
     const label = document.createElement('label');
     label.htmlFor = t.id;
     label.textContent = t.label;

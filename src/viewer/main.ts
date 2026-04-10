@@ -122,19 +122,10 @@ async function main() {
   );
   dirTrails.setEnabled(false);
   // Auto-disable trails for large repos (huge perf cost)
-  // Auto-optimize for large repos
+  // Auto-optimize for large repos — disable AND uncheck toggles
   const isLargeRepo = layout.files.length > 5000;
-  if (isLargeRepo) {
-    fileTrails.setEnabled(false);
-    fileInstances.setHaloEnabled(false);
-    tethers.lines.visible = false;
-    dirLinks.lines.visible = false;
-    console.log(`[gitview] large repo (${layout.files.length} files): halos, tethers, trails auto-disabled`);
-  }
 
   // Combined gating: dir trails are only visible when (trails toggle ON) AND (orbit toggle ON)
-  let trailsToggle = true;
-  let orbitToggle = false;
   function syncTrailVisibility() {
     fileTrails.setEnabled(trailsToggle);
     dirTrails.setEnabled(trailsToggle && orbitToggle);
@@ -383,6 +374,11 @@ async function main() {
     authorComets.setPaused(!timeline.state.isPlaying);
   });
 
+  // Track expand/orbit toggle state (declared before setupSettings because callbacks fire at init)
+  let expandToggleOn = false;
+  let trailsToggle = true;
+  let orbitToggle = false;
+
   // ----- UI -----
   setupLegend();
   const settings = setupSettings({
@@ -424,10 +420,8 @@ async function main() {
         }
       }
     },
-  });
+  }, isLargeRepo ? { bloom: false, star: false, trails: false, links: false } : undefined);
 
-  // Track expand toggle state + auto-switch on focus change
-  let expandToggleOn = false;
   let lastTrackedDir: DirNodeData | null = null;
 
   // ----- Author panel + hover tooltip -----
