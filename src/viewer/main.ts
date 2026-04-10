@@ -98,6 +98,8 @@ async function main() {
   const distribution = createDistribution(layout, dirNodes);
 
   // ----- Links -----
+  setLoading(75, 'Connexions...', `${layout.dirLinks.length} liens dossiers · ${layout.files.length} liens fichiers`);
+  await new Promise(r => setTimeout(r, 10));
   const dirLinks = createDirLinks(scene, layout);
   const tethers = createFileTethers(scene, layout.files);
 
