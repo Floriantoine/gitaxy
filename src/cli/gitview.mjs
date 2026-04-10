@@ -55,16 +55,24 @@ function isGitRepo(dir) {
   } catch { return false; }
 }
 
-/** Find git repos in immediate subdirectories (1 level deep). */
+const SKIP_DIRS = new Set(['node_modules', '.git', 'vendor', 'dist', 'build', '.cache', '__pycache__']);
+
+/** Recursively find git repos. Stops descending into found repos. */
 function findReposIn(dir) {
   const found = [];
   try {
     for (const entry of readdirSync(dir)) {
+      if (SKIP_DIRS.has(entry)) continue;
       const full = join(dir, entry);
       try {
         if (!statSync(full).isDirectory()) continue;
       } catch { continue; }
-      if (isGitRepo(full)) found.push(full);
+      if (isGitRepo(full)) {
+        found.push(full);
+        // Don't descend into this repo (no nested repos)
+      } else {
+        found.push(...findReposIn(full));
+      }
     }
   } catch { /* unreadable dir */ }
   return found;
