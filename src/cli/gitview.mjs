@@ -11,7 +11,7 @@
  */
 
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { resolve, dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -48,17 +48,49 @@ for (let i = 0; i < args.length; i++) {
 // Default to current directory if no paths given
 if (repoPaths.length === 0) repoPaths.push('.');
 
-// Resolve and validate each repo
+function isGitRepo(dir) {
+  try {
+    execFileSync('git', ['-C', dir, 'rev-parse', '--git-dir'], { stdio: 'ignore' });
+    return true;
+  } catch { return false; }
+}
+
+/** Find git repos in immediate subdirectories (1 level deep). */
+function findReposIn(dir) {
+  const found = [];
+  try {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      try {
+        if (!statSync(full).isDirectory()) continue;
+      } catch { continue; }
+      if (isGitRepo(full)) found.push(full);
+    }
+  } catch { /* unreadable dir */ }
+  return found;
+}
+
+// Resolve and validate each path — if not a repo, scan subdirs for repos
 const resolvedPaths = [];
 for (const rp of repoPaths) {
   const abs = resolve(rp);
-  try {
-    execFileSync('git', ['-C', abs, 'rev-parse', '--git-dir'], { stdio: 'ignore' });
+  if (isGitRepo(abs)) {
     resolvedPaths.push(abs);
-  } catch {
-    console.error(`❌ ${abs} is not a git repository.`);
-    process.exit(1);
+  } else {
+    const found = findReposIn(abs);
+    if (found.length > 0) {
+      console.log(`  📂 ${abs} → found ${found.length} repo(s): ${found.map(p => basename(p)).join(', ')}`);
+      resolvedPaths.push(...found);
+    } else {
+      console.error(`❌ ${abs} is not a git repository and contains no repos in subdirectories.`);
+      process.exit(1);
+    }
   }
+}
+
+if (resolvedPaths.length === 0) {
+  console.error('❌ No git repositories found.');
+  process.exit(1);
 }
 
 console.log(`\n  🌌 gitView — 3D Git Constellation\n`);
