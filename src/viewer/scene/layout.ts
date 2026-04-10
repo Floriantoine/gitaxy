@@ -63,6 +63,8 @@ export type Layout = {
   dirOrder: DirNodeData[];
   /** Bounding radius of the whole layout (for camera fit). */
   boundsRadius: number;
+  /** Virtual root node in multi-repo mode (hidden from rendering). */
+  virtualRoot: DirNodeData | null;
 };
 
 /** Recursive count of files under a tree node. */
@@ -226,7 +228,10 @@ export function buildLayout(tree: DirNode, isMultiRepo = false): Layout {
       };
       dirs.push(dirNode);
       childArr.push(dirNode);
-      dirLinks.push({ parent, child: dirNode });
+      // Skip link from virtual root to repo roots (no inter-galaxy lines)
+      if (!(isMultiRepo && parent.depth === 0)) {
+        dirLinks.push({ parent, child: dirNode });
+      }
       place(child, dirNode, color, childPath);
     });
     if (childArr.length > 0) childrenMap.set(parent, childArr);
@@ -307,5 +312,5 @@ export function buildLayout(tree: DirNode, isMultiRepo = false): Layout {
     }
   }
 
-  return { dirs, files, dirLinks, childrenMap, dirOrder, boundsRadius };
+  return { dirs, files, dirLinks, childrenMap, dirOrder, boundsRadius, virtualRoot: isMultiRepo ? root : null };
 }

@@ -47,6 +47,8 @@ export type DirNodeRender = {
 export function createDirNodes(scene: Scene, layout: Layout): DirNodeRender[] {
   const out: DirNodeRender[] = [];
   for (const d of layout.dirs) {
+    // Skip virtual root in multi-repo (invisible, no mesh needed)
+    if (layout.virtualRoot && d === layout.virtualRoot) continue;
     const isRoot = d.depth === 0;
     const radius = dirRadius(d.fileCount, isRoot);
 
