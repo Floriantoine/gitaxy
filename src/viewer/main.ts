@@ -554,17 +554,11 @@ async function main() {
     authorComets.animate(now, deltaMs);
     dirLinks.update(commitIdx);
     tethers.update(commitIdx);
-    // Trails: update every 2nd frame (halves the cost)
-    if (Math.round(now / 33) % 2 === 0) {
-      fileTrails.update(commitIdx);
-      dirTrails.update(commitIdx);
-    }
+    fileTrails.update(commitIdx);
+    dirTrails.update(commitIdx);
     starSprites.tick(t);
     focus.tick();
-    // Labels: tick every 3rd frame (DOM updates are expensive)
-    if (Math.round(now / 50) % 3 === 0) {
-      labels.tick(camera);
-    }
+    labels.tick(camera);
 
     // Follow author comet (smooth tracking)
     if (followedAuthor) {
@@ -597,10 +591,7 @@ async function main() {
 
     settings.setFps(fps.tick(now));
     stats.update(commitIdx);
-    // Minimap: render every 3rd frame
-    if (Math.round(now / 50) % 3 === 0) {
-      minimap.render(scene, renderer);
-    }
+    minimap.render(scene, renderer);
   }
   frame();
 

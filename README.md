@@ -6,6 +6,12 @@ Chaque dossier est une etoile, chaque fichier une planete en orbite, chaque aute
 
 Inspire par [Gource](https://gource.io/) mais en 3D, dans le navigateur, avec des effets modernes (bloom, particules, eclairs).
 
+![Vue d'ensemble](docs/screenshots/overview.png)
+
+![Vue rapprochee](docs/screenshots/zoom.png)
+
+![Timeline en cours](docs/screenshots/timeline.png)
+
 ---
 
 ## Features

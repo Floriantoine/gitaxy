@@ -236,50 +236,34 @@ export function createDistribution(layout: Layout, dirRenders: DirNodeRender[]):
     // Dirs: lerp currentDir toward target, weighted by descendant count
     // Heavy dirs (many sub-elements) barely move; light dirs shift easily
     for (const g of dirGroups) {
-      const n = g.lastNVisible;
-      if (n === 0) continue;
-      const expansion = getExpansion(g.parent); // once per group, not per child
-      const px = g.parent.position.x, py = g.parent.position.y, pz = g.parent.position.z;
-      for (let j = 0; j < n; j++) {
+      for (let j = 0; j < g.lastNVisible; j++) {
         const child = g.children[j];
-        const cd = g.currentDirs[j], td = g.targetDirs[j];
-        // Fast lerp (inline, skip if already converged)
-        const dx = td.x - cd.x, dy = td.y - cd.y, dz = td.z - cd.z;
-        if (dx * dx + dy * dy + dz * dz > 0.0001) {
-          const w = DIR_LERP / (1 + Math.log10(Math.max(1, child.fileCount)));
-          cd.x += dx * w; cd.y += dy * w; cd.z += dz * w;
-          const len = Math.sqrt(cd.x * cd.x + cd.y * cd.y + cd.z * cd.z);
-          if (len > 1e-6) { cd.x /= len; cd.y /= len; cd.z /= len; }
-        }
-        const r = g.radii[j] * expansion;
-        child.position.x = px + cd.x * r;
-        child.position.y = py + cd.y * r;
-        child.position.z = pz + cd.z * r;
+        const weight = 1 + Math.log10(Math.max(1, child.fileCount));
+        const lerpSpeed = DIR_LERP / weight;
+        g.currentDirs[j].lerp(g.targetDirs[j], lerpSpeed);
+        const len = g.currentDirs[j].length();
+        if (len > 1e-6) g.currentDirs[j].divideScalar(len);
+        // World position
+        // Apply expansion factor: expanded parent → children spread wider
+        const expansion = getExpansion(g.parent);
+        child.position.copy(g.parent.position).addScaledVector(g.currentDirs[j], g.radii[j] * expansion);
         const tp = dirTargetPos.get(child)!;
-        tp.x = px + td.x * r; tp.y = py + td.y * r; tp.z = pz + td.z * r;
-        const render = dirRenderMap.get(child);
-        if (render) { const mp = render.mesh.position; mp.x = child.position.x; mp.y = child.position.y; mp.z = child.position.z; }
+        tp.copy(g.parent.position).addScaledVector(g.targetDirs[j], g.radii[j] * expansion);
+        // Mesh
+        const r = dirRenderMap.get(child);
+        if (r) r.mesh.position.copy(child.position);
       }
     }
-    // Files: inline lerp + skip converged + batch expansion per group
+    // Files: lerp + recompute
     for (const g of fileGroups) {
-      const n = g.lastNVisible;
-      if (n === 0) continue;
-      const exp = getExpansion(g.dir); // once per group
-      const px = g.dir.position.x, py = g.dir.position.y, pz = g.dir.position.z;
-      for (let j = 0; j < n; j++) {
+      for (let j = 0; j < g.lastNVisible; j++) {
         const f = g.files[j];
-        const cd = f.currentDirection, td = f.targetDirection;
-        const dx = td.x - cd.x, dy = td.y - cd.y, dz = td.z - cd.z;
-        if (dx * dx + dy * dy + dz * dz > 0.0001) {
-          cd.x += dx * FILE_LERP; cd.y += dy * FILE_LERP; cd.z += dz * FILE_LERP;
-          const len = Math.sqrt(cd.x * cd.x + cd.y * cd.y + cd.z * cd.z);
-          if (len > 1e-6) { cd.x /= len; cd.y /= len; cd.z /= len; }
-        }
-        const r = f.orbitRadius * exp;
-        f.currentPosition.x = px + cd.x * r;
-        f.currentPosition.y = py + cd.y * r;
-        f.currentPosition.z = pz + cd.z * r;
+        f.currentDirection.lerp(f.targetDirection, FILE_LERP);
+        const len = f.currentDirection.length();
+        if (len > 1e-6) f.currentDirection.divideScalar(len);
+        const fileExpansion = getExpansion(f.parent);
+        f.currentPosition.copy(f.parent.position)
+          .addScaledVector(f.currentDirection, f.orbitRadius * fileExpansion);
       }
     }
   }
