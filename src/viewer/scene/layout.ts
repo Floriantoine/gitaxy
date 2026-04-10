@@ -189,7 +189,12 @@ export function buildLayout(tree: DirNode, isMultiRepo = false): Layout {
       const childScale = Math.cbrt(childFileCount) * 10 + Math.sqrt(childFileCount) * 0.6;
       // Also ensure child is far enough to contain its OWN subtree without overlapping siblings
       const childOwnSpread = childRadiusFor(parent.depth + 1, childFileCount);
-      const perChildRadius = Math.max(minDist + childScale, childOwnSpread * 1.5);
+      let perChildRadius = Math.max(minDist + childScale, childOwnSpread * 1.5);
+      // Multi-repo: galaxies need much more separation to avoid overlap
+      if (isMultiRepo && parent.depth === 0) {
+        const baseGalaxyDist = 600 + Math.sqrt(parent.fileCount) * 10;
+        perChildRadius = baseGalaxyDist + childOwnSpread;
+      }
       const localPos = directions[i].multiplyScalar(perChildRadius);
       const worldPos = parent.position.clone().add(localPos);
       const color = parent.depth === 0 ? DIR_PALETTE[i % DIR_PALETTE.length] : parentColor;
