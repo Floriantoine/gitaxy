@@ -52,18 +52,24 @@ export function createDirNodes(scene: Scene, layout: Layout): DirNodeRender[] {
     const isRoot = d.depth === 0;
     const radius = dirRadius(d.fileCount, isRoot);
 
-    const mat = new MeshBasicMaterial({ color: d.color });
+    // Dir core: semi-transparent + wireframe overlay for structural look
+    const mat = new MeshBasicMaterial({ color: d.color, transparent: true, opacity: 0.4 });
     const mesh = new Mesh(dirGeo(radius), mat);
     mesh.position.copy(d.position);
-    // _data exposed for the drag/click interactions
     mesh.userData = { kind: 'dir', name: d.name, fullPath: d.fullPath, _data: d };
     scene.add(mesh);
 
-    // Halo as a child of the mesh — follows the mesh on drag automatically
+    // Wireframe overlay — makes dirs look like structural hubs, not data dots
+    const wireMat = new MeshBasicMaterial({ color: d.color, wireframe: true, transparent: true, opacity: 0.6 });
+    const wire = new Mesh(dirGeo(radius), wireMat);
+    wire.position.set(0, 0, 0);
+    mesh.add(wire);
+
+    // Halo ring
     const haloMat = new MeshBasicMaterial({
       color: d.color,
       transparent: true,
-      opacity: 0.12,
+      opacity: 0.1,
       blending: AdditiveBlending,
       depthWrite: false,
     });

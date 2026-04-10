@@ -106,12 +106,29 @@ export function createFileTethers(scene: Scene, files: FileNodeData[]): FileTeth
   const lines = new LineSegments(geo, mat);
   scene.add(lines);
 
+  let lastCommitIdx = -1;
   function update(commitIdx: number) {
+    // Only do full update when commitIdx changes (not every frame)
+    if (commitIdx === lastCommitIdx) {
+      // Just update positions for visible files (they move via distribution)
+      for (let i = 0; i < n; i++) {
+        if (files[i].bornAt > commitIdx) continue;
+        const f = files[i];
+        const base = i * 6;
+        const p = f.parent.position;
+        positions[base] = p.x; positions[base + 1] = p.y; positions[base + 2] = p.z;
+        positions[base + 3] = f.currentPosition.x;
+        positions[base + 4] = f.currentPosition.y;
+        positions[base + 5] = f.currentPosition.z;
+      }
+      posAttr.needsUpdate = true;
+      return;
+    }
+    lastCommitIdx = commitIdx;
     for (let i = 0; i < n; i++) {
       const f = files[i];
       const base = i * 6;
       if (f.bornAt > commitIdx) {
-        // File not yet born → collapse segment to parent position (zero-length)
         const p = f.parent.position;
         positions[base] = p.x; positions[base + 1] = p.y; positions[base + 2] = p.z;
         positions[base + 3] = p.x; positions[base + 4] = p.y; positions[base + 5] = p.z;

@@ -144,29 +144,35 @@ export function buildLayout(tree: DirNode): Layout {
    */
   function childRadiusFor(parentDepth: number, parentRecursiveFileCount: number): number {
     const sqfc = Math.sqrt(parentRecursiveFileCount);
-    if (parentDepth === 0) return 320 + sqfc * 4.5; // top-level galaxies
-    if (parentDepth === 1) return 110 + sqfc * 2.6; // sub-dirs of top-level
-    if (parentDepth === 2) return 58 + sqfc * 1.7;
-    if (parentDepth === 3) return 34 + sqfc * 1.05;
-    return 22 + sqfc * 0.7;
+    if (parentDepth === 0) return 350 + sqfc * 5.0; // top-level galaxies
+    if (parentDepth === 1) return 130 + sqfc * 3.0; // sub-dirs of top-level
+    if (parentDepth === 2) return 70 + sqfc * 2.0;
+    if (parentDepth === 3) return 42 + sqfc * 1.3;
+    return 28 + sqfc * 0.9;
   }
 
   function place(node: DirNode, parent: DirNodeData, parentColor: number, parentPath: string) {
     const dirChildren = node.children.filter((c): c is DirNode => c.type === 'dir');
     const fileChildren = node.children.filter((c): c is FileNode => c.type === 'file');
 
-    const childRadius = childRadiusFor(parent.depth, parent.fileCount);
-    const positions = fibonacciSphere(dirChildren.length, childRadius);
+    // Get unit directions from Fibonacci sphere (radius 1)
+    const directions = fibonacciSphere(dirChildren.length, 1);
 
-    // Slight orientation jitter so subtrees aren't axis-aligned
+    // Slight orientation jitter
     const orient = new Quaternion().setFromEuler(
       new Euler((rand() - 0.5) * 0.8, (rand() - 0.5) * 0.8, (rand() - 0.5) * 0.8),
     );
-    positions.forEach((p) => p.applyQuaternion(orient));
+    directions.forEach((p) => p.applyQuaternion(orient));
 
+    // Per-child radius: big children (many files) → far, small children → close
+    const baseRadius = childRadiusFor(parent.depth, parent.fileCount) * 0.5; // minimum distance
     const childArr: DirNodeData[] = [];
     dirChildren.forEach((child, i) => {
-      const localPos = positions[i];
+      const childFileCount = countFiles(child);
+      // Scale with cube-root for large repos (sqrt grows too fast for 5000+ files)
+      const childScale = Math.cbrt(childFileCount) * 8 + Math.sqrt(childFileCount) * 0.8;
+      const perChildRadius = baseRadius + childScale;
+      const localPos = directions[i].multiplyScalar(perChildRadius);
       const worldPos = parent.position.clone().add(localPos);
       const color = parent.depth === 0 ? DIR_PALETTE[i % DIR_PALETTE.length] : parentColor;
       const childPath = parentPath === '/' ? '/' + child.name : parentPath + '/' + child.name;

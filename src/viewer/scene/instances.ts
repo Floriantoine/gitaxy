@@ -12,8 +12,9 @@ import {
 import type { FileNodeData } from './layout';
 import type { SpawnParticles } from './spawn-particles';
 
-const UNIT_SPHERE = new SphereGeometry(1, 10, 10);
-const HALO_SPHERE = new SphereGeometry(2.5, 10, 10);
+// Low-poly for perf on large repos (93K+ files)
+const UNIT_SPHERE = new SphereGeometry(1, 6, 6);
+const HALO_SPHERE = new SphereGeometry(2.5, 4, 4);
 const IDENTITY_QUAT = new Quaternion();
 
 /**
@@ -106,20 +107,23 @@ export function createFileInstances(
 
     for (let i = 0; i < n; i++) {
       const f = files[i];
+
+      // FAST PATH: skip hidden files entirely (huge perf gain for timeline with many hidden)
+      if (hidden[i] === 1 && spawnStart[i] < 0 && deleteStart[i] < 0) {
+        // Only write matrix if file was recently hidden (not already zeroed)
+        continue;
+      }
+
       let scale = f.radius;
       let vis = true;
 
-      // Position is already set by distribution.tick() to the orbit target.
-      // We might override it during spawn flight.
       let posX = f.currentPosition.x;
       let posY = f.currentPosition.y;
       let posZ = f.currentPosition.z;
 
-
       if (hidden[i] === 1) {
         vis = false;
         scale = 0;
-        // Position at parent so tethers/trails don't draw ghost lines
         posX = f.parent.position.x;
         posY = f.parent.position.y;
         posZ = f.parent.position.z;
@@ -274,24 +278,25 @@ export function createFileInstances(
     }
   }
 
-  /** Check if a file is visible at a given commit (accounts for delete/re-create cycles). */
+  /** Check if a file is visible at a given commit. Fast path for files without deletes. */
   function isVisibleAt(f: FileNodeData, commitIdx: number): boolean {
     if (f.bornAt > commitIdx) return false;
+    // Fast path: no delete events (vast majority of files)
     if (f.deletedAt.length === 0) return true;
-    // Find the last event (A/M/D) before commitIdx to determine alive/dead state.
-    // Any event after a D means re-creation.
-    let lastEventType: 'alive' | 'dead' = 'alive'; // born = alive
-    // Merge all events sorted by commitIdx
-    const events: Array<{ idx: number; dead: boolean }> = [];
-    events.push({ idx: f.bornAt, dead: false });
-    for (const m of f.modifiedAt) events.push({ idx: m, dead: false });
-    for (const d of f.deletedAt) events.push({ idx: d, dead: true });
-    events.sort((a, b) => a.idx - b.idx);
-    for (const e of events) {
-      if (e.idx > commitIdx) break;
-      lastEventType = e.dead ? 'dead' : 'alive';
+    // Find the last event type before commitIdx
+    let alive = true;
+    // Walk deletedAt and modifiedAt in order (both are sorted)
+    let di = 0, mi = 0;
+    while (di < f.deletedAt.length || mi < f.modifiedAt.length) {
+      const nextDel = di < f.deletedAt.length ? f.deletedAt[di] : Infinity;
+      const nextMod = mi < f.modifiedAt.length ? f.modifiedAt[mi] : Infinity;
+      const next = Math.min(nextDel, nextMod);
+      if (next > commitIdx) break;
+      alive = next !== nextDel; // true if mod, false if del
+      if (next === nextDel) di++;
+      if (next === nextMod) mi++;
     }
-    return lastEventType === 'alive';
+    return alive;
   }
 
   function snapToCommit(commitIdx: number) {

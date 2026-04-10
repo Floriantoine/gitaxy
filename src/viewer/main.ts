@@ -88,7 +88,12 @@ async function main() {
     scene,
     orbitingDirs.map((d) => ({ position: d.position, color: d.color, bornAt: d.bornAt })),
   );
-  dirTrails.setEnabled(false); // start hidden — only meaningful when orbits are on
+  dirTrails.setEnabled(false);
+  // Auto-disable trails for large repos (huge perf cost)
+  if (layout.files.length > 5000) {
+    fileTrails.setEnabled(false);
+    console.log(`[gitview] trails auto-disabled for ${layout.files.length} files (perf)`);
+  }
 
   // Combined gating: dir trails are only visible when (trails toggle ON) AND (orbit toggle ON)
   let trailsToggle = true;

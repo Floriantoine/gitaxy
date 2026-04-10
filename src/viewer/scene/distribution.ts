@@ -254,13 +254,20 @@ export function createDistribution(layout: Layout, dirRenders: DirNodeRender[]):
         if (r) r.mesh.position.copy(child.position);
       }
     }
-    // Files: lerp + recompute
+    // Files: recompute position from parent (lerp only if direction differs from target)
     for (const g of fileGroups) {
-      for (let j = 0; j < g.lastNVisible; j++) {
+      const n = g.lastNVisible;
+      for (let j = 0; j < n; j++) {
         const f = g.files[j];
-        f.currentDirection.lerp(f.targetDirection, FILE_LERP);
-        const len = f.currentDirection.length();
-        if (len > 1e-6) f.currentDirection.divideScalar(len);
+        // Skip expensive lerp+normalize if direction is already at target
+        const dx = f.targetDirection.x - f.currentDirection.x;
+        const dy = f.targetDirection.y - f.currentDirection.y;
+        const dz = f.targetDirection.z - f.currentDirection.z;
+        if (dx * dx + dy * dy + dz * dz > 0.0001) {
+          f.currentDirection.lerp(f.targetDirection, FILE_LERP);
+          const len = f.currentDirection.length();
+          if (len > 1e-6) f.currentDirection.divideScalar(len);
+        }
         const fileExpansion = getExpansion(f.parent);
         f.currentPosition.copy(f.parent.position)
           .addScaledVector(f.currentDirection, f.orbitRadius * fileExpansion);
