@@ -78,6 +78,11 @@ export function setupInteractions(
   canvas.addEventListener(
     'pointerdown',
     (e: PointerEvent) => {
+      // Right-click while tracking → stop focus, re-enable pan
+      if (e.button === 2 && focus.isTracking()) {
+        focus.clearTracking();
+        return;
+      }
       if (e.button !== 0) return;
       downX = e.clientX;
       downY = e.clientY;

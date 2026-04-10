@@ -62,6 +62,8 @@ export type FileInstances = {
   implode(fileIdx: number, nowMs: number): void;
   setHidden(fileIdx: number, hidden: boolean): void;
   snapToCommit(commitIdx: number): void;
+  /** Force full position update next frame (e.g. during expansion). */
+  markAllDirty(): void;
 };
 
 export function createFileInstances(
@@ -452,5 +454,6 @@ export function createFileInstances(
     },
     setHidden(fileIdx: number, isHidden: boolean) { hidden[fileIdx] = isHidden ? 1 : 0; },
     snapToCommit,
+    markAllDirty() { needsFullUpdate = true; },
   };
 }

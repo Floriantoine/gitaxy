@@ -564,7 +564,8 @@ async function main() {
 
     const commitIdx = timeline.state.currentIndex;
     distribution.update(commitIdx); // recompute targets if N_visible changed
-    distribution.tick();            // lerp ALL dirs + files toward targets
+    const expanding = distribution.tick(); // lerp ALL dirs + files toward targets
+    if (expanding) fileInstances.markAllDirty(); // expansion moved files → refresh GPU buffers
     // Dir spawn flight animations AFTER tick — overrides spawning dirs
     for (const [d, state] of dirSpawnAnims) {
       const render = dirRenderMap.get(d);

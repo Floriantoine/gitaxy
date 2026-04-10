@@ -15,7 +15,8 @@ import type { DirNodeRender } from './nodes';
 
 export type Distribution = {
   update(commitIdx: number): void;
-  tick(): void;
+  /** Lerp dirs + files toward targets. Returns true if expansion is animating. */
+  tick(): boolean;
   snap(commitIdx: number): void;
   getDirTarget(dir: DirNodeData): Vector3 | undefined;
   /** Expand a dir: its children spread wider (factor auto-computed from child count). */
@@ -127,6 +128,7 @@ type FileGroup = {
   _lastParentX: number;
   _lastParentY: number;
   _lastParentZ: number;
+  _lastExpansion: number;
 };
 
 // ---- Main ----
@@ -190,6 +192,7 @@ export function createDistribution(layout: Layout, dirRenders: DirNodeRender[]):
       tiltAxis: fileTilt,
       lastNVisible: -1,
       _lastParentX: NaN, _lastParentY: NaN, _lastParentZ: NaN,
+      _lastExpansion: 1,
     });
   }
 
@@ -235,8 +238,8 @@ export function createDistribution(layout: Layout, dirRenders: DirNodeRender[]):
 
   // ---- Tick: lerp toward targets + recompute world positions ----
 
-  function tick() {
-    tickExpansion(); // smooth lerp of expansion factors
+  function tick(): boolean {
+    const expanding = tickExpansion(); // smooth lerp of expansion factors
     // Dirs: lerp currentDir toward target, weighted by descendant count
     // Heavy dirs (many sub-elements) barely move; light dirs shift easily
     for (const g of dirGroups) {
@@ -264,17 +267,19 @@ export function createDistribution(layout: Layout, dirRenders: DirNodeRender[]):
       const n = g.lastNVisible;
       if (n === 0) continue;
       const parentMoved = g.dir.position.x !== g._lastParentX || g.dir.position.y !== g._lastParentY || g.dir.position.z !== g._lastParentZ;
-      (g as any)._lastParentX = g.dir.position.x;
-      (g as any)._lastParentY = g.dir.position.y;
-      (g as any)._lastParentZ = g.dir.position.z;
+      g._lastParentX = g.dir.position.x;
+      g._lastParentY = g.dir.position.y;
+      g._lastParentZ = g.dir.position.z;
       const fileExpansion = getExpansion(g.dir);
+      const expansionChanged = fileExpansion !== g._lastExpansion;
+      g._lastExpansion = fileExpansion;
       for (let j = 0; j < n; j++) {
         const f = g.files[j];
         const dx = f.targetDirection.x - f.currentDirection.x;
         const dy = f.targetDirection.y - f.currentDirection.y;
         const dz = f.targetDirection.z - f.currentDirection.z;
         const needsLerp = dx * dx + dy * dy + dz * dz > 0.0001;
-        if (!needsLerp && !parentMoved) continue; // nothing changed → skip
+        if (!needsLerp && !parentMoved && !expansionChanged) continue;
         if (needsLerp) {
           f.currentDirection.lerp(f.targetDirection, FILE_LERP);
           const len = f.currentDirection.length();
@@ -284,6 +289,7 @@ export function createDistribution(layout: Layout, dirRenders: DirNodeRender[]):
           .addScaledVector(f.currentDirection, f.orbitRadius * fileExpansion);
       }
     }
+    return expanding;
   }
 
   // ---- Snap ----
@@ -369,7 +375,9 @@ export function createDistribution(layout: Layout, dirRenders: DirNodeRender[]):
     }
   }
 
-  function tickExpansion() {
+  /** Returns true if any expansion is still animating. */
+  function tickExpansion(): boolean {
+    let animating = false;
     for (const [dir, target] of expandTarget) {
       const current = expandCurrent.get(dir) ?? 1;
       if (Math.abs(current - target) < 0.01) {
@@ -377,8 +385,10 @@ export function createDistribution(layout: Layout, dirRenders: DirNodeRender[]):
         if (target === 1) { expandTarget.delete(dir); expandCurrent.delete(dir); }
       } else {
         expandCurrent.set(dir, current + (target - current) * EXPAND_LERP);
+        animating = true;
       }
     }
+    return animating;
   }
 
   snap(Infinity);
