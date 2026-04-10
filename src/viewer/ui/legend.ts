@@ -101,6 +101,24 @@ export function setupLegend(files: FileNodeData[]): Legend {
       total += count;
     }
 
+    // Other count
+    let otherCount = 0;
+    if (otherBuckets.length > 0) {
+      for (const bucket of otherBuckets) {
+        for (const f of bucket) {
+          if (f.bornAt > commitIdx) break;
+          if (isAlive(f, commitIdx)) otherCount++;
+        }
+      }
+    }
+
+    // Find max count (for relative bar widths — biggest ext = 100% bar)
+    let maxCount = otherCount;
+    for (const r of rows) {
+      const c = counts.get(r.ext) ?? 0;
+      if (c > maxCount) maxCount = c;
+    }
+
     // Update rows — reorder by count descending
     const sorted = [...rows].sort(
       (a, b) => (counts.get(b.ext) ?? 0) - (counts.get(a.ext) ?? 0),
@@ -109,23 +127,18 @@ export function setupLegend(files: FileNodeData[]): Legend {
     for (const r of sorted) {
       const count = counts.get(r.ext) ?? 0;
       const pct = total > 0 ? (count / total) * 100 : 0;
-      r.fill.style.width = pct + '%';
+      const barPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
+      r.fill.style.width = barPct + '%';
       r.num.textContent = count === 0 ? '' : pct >= 1 ? Math.round(pct) + '%' : '<1%';
       r.el.style.display = count === 0 ? 'none' : '';
-      legend.appendChild(r.el); // re-appending moves to end → reorders
+      legend.appendChild(r.el);
     }
 
     // Other
     if (otherRow) {
-      let otherCount = 0;
-      for (const bucket of otherBuckets) {
-        for (const f of bucket) {
-          if (f.bornAt > commitIdx) break;
-          if (isAlive(f, commitIdx)) otherCount++;
-        }
-      }
       const pct = total > 0 ? (otherCount / total) * 100 : 0;
-      otherRow.fill.style.width = pct + '%';
+      const barPct = maxCount > 0 ? (otherCount / maxCount) * 100 : 0;
+      otherRow.fill.style.width = barPct + '%';
       otherRow.num.textContent = otherCount === 0 ? '' : Math.round(pct) + '%';
       otherRow.el.style.display = otherCount === 0 ? 'none' : '';
       legend.appendChild(otherRow.el);
