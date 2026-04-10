@@ -8,19 +8,19 @@ import {
 import type { DirNodeData, Layout } from './layout';
 import { dirRadius } from './colors';
 
-// Quantized cache so we don't allocate one geometry per dir
+// Quantized cache — low-poly for perf
 const DIR_GEO_CACHE = new Map<number, SphereGeometry>();
 const DIR_HALO_CACHE = new Map<number, SphereGeometry>();
 
 function quantize(r: number): number {
-  return Math.round(r * 4) / 4; // 0.25 step
+  return Math.round(r * 4) / 4;
 }
 
 function dirGeo(radius: number): SphereGeometry {
   const key = quantize(radius);
   let g = DIR_GEO_CACHE.get(key);
   if (!g) {
-    g = new SphereGeometry(key, 16, 16);
+    g = new SphereGeometry(key, 10, 10);
     DIR_GEO_CACHE.set(key, g);
   }
   return g;
@@ -30,9 +30,7 @@ function dirHaloGeo(radius: number): SphereGeometry {
   const key = quantize(radius);
   let g = DIR_HALO_CACHE.get(key);
   if (!g) {
-    // Halo factor reduced from 2.8 → 2.0 — with bigger dir radii, the old
-    // factor was bleeding too much and overlapping with neighbors.
-    g = new SphereGeometry(key * 2.0, 14, 14);
+    g = new SphereGeometry(key * 2.0, 8, 8);
     DIR_HALO_CACHE.set(key, g);
   }
   return g;

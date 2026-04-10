@@ -90,9 +90,14 @@ async function main() {
   );
   dirTrails.setEnabled(false);
   // Auto-disable trails for large repos (huge perf cost)
-  if (layout.files.length > 5000) {
+  // Auto-optimize for large repos
+  const isLargeRepo = layout.files.length > 5000;
+  if (isLargeRepo) {
     fileTrails.setEnabled(false);
-    console.log(`[gitview] trails auto-disabled for ${layout.files.length} files (perf)`);
+    fileInstances.setHaloEnabled(false);
+    tethers.lines.visible = false;
+    dirLinks.lines.visible = false;
+    console.log(`[gitview] large repo (${layout.files.length} files): halos, tethers, trails auto-disabled`);
   }
 
   // Combined gating: dir trails are only visible when (trails toggle ON) AND (orbit toggle ON)
@@ -596,7 +601,7 @@ async function main() {
 
     settings.setFps(fps.tick(now));
     stats.update(commitIdx);
-    minimap.render(scene, renderer);
+    if (!isLargeRepo) minimap.render(scene, renderer); // skip minimap double-render for large repos
   }
   frame();
 
