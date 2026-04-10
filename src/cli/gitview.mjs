@@ -3,15 +3,16 @@
  * gitView — 3D git constellation visualizer.
  *
  * Usage:
- *   npx gitview [repo-path]       # scan + open viewer
- *   npx gitview                   # use current directory
- *   npx gitview /path/to/repo     # use specified repo
- *   npx gitview --port 3000       # custom port
+ *   npx gitview [repo-path...]       # scan + open viewer
+ *   npx gitview                      # use current directory
+ *   npx gitview /path/to/repo        # use specified repo
+ *   npx gitview /repo1 /repo2        # multi-repo galaxy
+ *   npx gitview --port 3000          # custom port
  */
 
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
-import { resolve, dirname, join } from 'node:path';
+import { resolve, dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,7 +20,7 @@ const __dirname = dirname(__filename);
 const ROOT = resolve(__dirname, '../..');
 
 // Parse args
-let repoPath = '.';
+const repoPaths = [];
 let port = 5175;
 const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i++) {
@@ -29,32 +30,46 @@ for (let i = 0; i < args.length; i++) {
   gitView — 3D git constellation visualizer
 
   Usage:
-    gitview [repo-path] [--port PORT]
+    gitview [repo-path...] [--port PORT]
 
   Examples:
-    gitview                    # visualize current directory
-    gitview /path/to/repo      # visualize a specific repo
-    gitview . --port 3000      # custom port
+    gitview                         # visualize current directory
+    gitview /path/to/repo           # visualize a specific repo
+    gitview /repo1 /repo2 /repo3    # multi-repo galaxy
+    gitview . --port 3000           # custom port
 
   The viewer opens at http://localhost:PORT
 `);
     process.exit(0);
   }
-  else if (!args[i].startsWith('-')) { repoPath = args[i]; }
+  else if (!args[i].startsWith('-')) { repoPaths.push(args[i]); }
 }
 
-repoPath = resolve(repoPath);
+// Default to current directory if no paths given
+if (repoPaths.length === 0) repoPaths.push('.');
 
-// Verify it's a git repo
-try {
-  execFileSync('git', ['-C', repoPath, 'rev-parse', '--git-dir'], { stdio: 'ignore' });
-} catch {
-  console.error(`❌ ${repoPath} is not a git repository.`);
-  process.exit(1);
+// Resolve and validate each repo
+const resolvedPaths = [];
+for (const rp of repoPaths) {
+  const abs = resolve(rp);
+  try {
+    execFileSync('git', ['-C', abs, 'rev-parse', '--git-dir'], { stdio: 'ignore' });
+    resolvedPaths.push(abs);
+  } catch {
+    console.error(`❌ ${abs} is not a git repository.`);
+    process.exit(1);
+  }
 }
 
 console.log(`\n  🌌 gitView — 3D Git Constellation\n`);
-console.log(`  Repo:   ${repoPath}`);
+if (resolvedPaths.length === 1) {
+  console.log(`  Repo:   ${resolvedPaths[0]}`);
+} else {
+  console.log(`  Repos:  ${resolvedPaths.length} repositories`);
+  for (const p of resolvedPaths) {
+    console.log(`          · ${basename(p)} (${p})`);
+  }
+}
 
 // Step 1: Scan
 const scanScript = join(ROOT, 'src/cli/scan-repo.mjs');
@@ -64,7 +79,7 @@ mkdirSync(dataDir, { recursive: true });
 
 console.log(`  Scan:   analyzing git history...\n`);
 try {
-  execFileSync('node', [scanScript, repoPath, dataFile], { stdio: 'inherit' });
+  execFileSync('node', [scanScript, ...resolvedPaths, dataFile], { stdio: 'inherit' });
 } catch (err) {
   console.error('❌ Scan failed.');
   process.exit(1);

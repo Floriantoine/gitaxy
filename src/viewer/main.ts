@@ -53,12 +53,24 @@ async function main() {
   // ----- Load data -----
   setLoading(5, 'Chargement des données...');
   const repo = await loadRepo('/data/repo.json');
-  setLoading(20, 'Données chargées', `${repo.meta.fileCount} fichiers · ${repo.meta.commitCount ?? 0} commits`);
+  // Multi-repo support: meta can be single or { repos: [...] }
+  const isMultiRepo = 'repos' in repo.meta;
+  const totalFiles = isMultiRepo
+    ? (repo.meta as any).repos.reduce((s: number, r: any) => s + r.fileCount, 0)
+    : (repo.meta as any).fileCount;
+  const totalCommits = repo.commits.length;
+  const totalLines = isMultiRepo
+    ? (repo.meta as any).repos.reduce((s: number, r: any) => s + (r.totalLines ?? 0), 0)
+    : ((repo.meta as any).totalLines ?? 0);
+  const repoLabel = isMultiRepo
+    ? `${(repo.meta as any).repos.length} repos`
+    : (repo.meta as any).repo;
+  setLoading(20, 'Données chargées', `${totalFiles} fichiers · ${totalCommits} commits`);
   // Yield to let the loading bar render
   await new Promise(r => setTimeout(r, 50));
 
   setStatus(
-    `${repo.meta.repo} — ${repo.meta.fileCount} fichiers · ${(repo.meta.totalLines ?? 0).toLocaleString('fr-FR')} lignes · ${repo.meta.commitCount ?? 0} commits`,
+    `${repoLabel} — ${totalFiles} fichiers · ${totalLines.toLocaleString('fr-FR')} lignes · ${totalCommits} commits`,
   );
 
   // ----- Scene -----
@@ -72,9 +84,9 @@ async function main() {
   createStarfield(scene);
 
   // ----- Layout -----
-  setLoading(35, 'Calcul du layout 3D...', `${repo.meta.fileCount} fichiers à positionner`);
+  setLoading(35, 'Calcul du layout 3D...', `${totalFiles} fichiers à positionner`);
   await new Promise(r => setTimeout(r, 10));
-  const layout = buildLayout(repo.tree);
+  const layout = buildLayout(repo.tree, isMultiRepo);
   console.log(
     `[gitview] layout: ${layout.dirs.length} dirs, ${layout.files.length} files, bounds=${layout.boundsRadius.toFixed(0)}`,
   );

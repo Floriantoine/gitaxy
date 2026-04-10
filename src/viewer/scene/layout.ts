@@ -103,7 +103,7 @@ function fibonacciSphere(n: number, radius: number): Vector3[] {
  * - file orbit shell scales with sibling count (a dir with 500 files spreads more)
  * - per-depth tuning aims to keep sibling bubbles non-overlapping for typical repos
  */
-export function buildLayout(tree: DirNode): Layout {
+export function buildLayout(tree: DirNode, isMultiRepo = false): Layout {
   const dirs: DirNodeData[] = [];
   const files: FileNodeData[] = [];
   const dirLinks: DirLink[] = [];
@@ -144,10 +144,13 @@ export function buildLayout(tree: DirNode): Layout {
    */
   function childRadiusFor(parentDepth: number, parentRecursiveFileCount: number): number {
     const sqfc = Math.sqrt(parentRecursiveFileCount);
-    if (parentDepth === 0) return 350 + sqfc * 5.0; // top-level galaxies
-    if (parentDepth === 1) return 130 + sqfc * 3.0; // sub-dirs of top-level
-    if (parentDepth === 2) return 70 + sqfc * 2.0;
-    if (parentDepth === 3) return 42 + sqfc * 1.3;
+    // In multi-repo, depth 0 = virtual root (galaxy separation), so offset internal depths
+    const d = isMultiRepo ? Math.max(0, parentDepth - 1) : parentDepth;
+    if (isMultiRepo && parentDepth === 0) return 600 + sqfc * 8.0; // inter-galaxy spacing
+    if (d === 0) return 350 + sqfc * 5.0; // top-level galaxies
+    if (d === 1) return 130 + sqfc * 3.0; // sub-dirs of top-level
+    if (d === 2) return 70 + sqfc * 2.0;
+    if (d === 3) return 42 + sqfc * 1.3;
     return 28 + sqfc * 0.9;
   }
 

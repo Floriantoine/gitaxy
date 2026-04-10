@@ -37,6 +37,8 @@ export type CommitInfo = {
   date: string; // ISO 8601
   author: string;
   message: string;
+  /** Which repo this commit belongs to. */
+  repo: string;
   /** Paths added in this commit (only currently-tracked files). */
   added: string[];
   /** Paths modified in this commit. */
@@ -52,7 +54,7 @@ export type FileCoupling = {
 };
 
 export type RepoData = {
-  meta: RepoMeta;
+  meta: RepoMeta | { repos: RepoMeta[]; scannedAt: string };
   tree: DirNode;
   commits: CommitInfo[];
   couplings: FileCoupling[];
